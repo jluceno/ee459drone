@@ -2,8 +2,8 @@
 
 #import all the libraries
 import RPi.GPIO as GPIO 	# needed for the interrupt service routine
-
-
+import wiringpi as wpi
+import serial
 ser = serial.Serial ("/dev/ttyAMA0") # this will open the serial port for the device
 
 
