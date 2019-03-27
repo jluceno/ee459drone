@@ -23,51 +23,32 @@
 unsigned int PWM_time_i[4] = {0, 0, 0, 0};
 unsigned int PWM_time_d[4] = {0, 0, 0, 0};
 unsigned int PWM_percent[4];
-unsigned char PWM_stat_i[4];
+unsigned int PWM_stat_i[4] = {0, 0, 0, 0};
 
 ISR(PCINT0_vect)
 {
-  unsigned int curr_time = TCNT1;
-  unsigned char PWM_curr_stat[NUM_CHAN] = {PWM_PINB0};
-  int i;
-
-  for (i = 0; i < NUM_CHAN; i++)
+  int curr_time = TCNT1;
+  // Rising Edge
+  if (PWM_stat_i[0] == 0 && PWM_PINB0)
   {
-    //Rising edge detected
-    if (PWM_stat_i[i] == 0 && PWM_curr_stat[i])
+    DEBUG_ON;
+    PWM_stat_i[0] = 1;
+    PWM_time_i[0] = TCNT1;
+  }
+  // Falling Edge
+  else if (PWM_stat_i[0] == 1 && !PWM_PINB0)
+  {
+    DEBUG_OFF;
+    PWM_stat_i[0] = 0;
+
+    // Overflow prevention
+    if (curr_time < PWM_time_i[0])
     {
-      PWM_time_i[i] = curr_time;
-      PWM_stat_i[i] = 1;
-      continue;
+      PWM_time_d[0] = MAX_COUNT - (PWM_time_i[0] - curr_time);
     }
-
-    //Falling edge detected
-    else if (PWM_stat_i[i] == 1 && !(PWM_curr_stat[i]))
+    else
     {
-      PWM_stat_i[i] == 0;
-      // Overflow case
-      if (PWM_time_i[i] > curr_time)
-      {
-        PWM_time_d[i] = PWM_time_i[i] - curr_time;
-        PWM_time_d[i] = MAX_COUNT - PWM_time_d[i];
-      }
-      // Normal case
-      else
-      {
-        PWM_time_d[i] = curr_time - PWM_time_i[i];
-      }
-
-      // Calculate throttle percentage
-      PWM_percent[i] = ((PWM_time_d[i] - CYCLES_0_THROTTLE)*100) /
-        (CYCLES_100_THROTTLE - CYCLES_0_THROTTLE);
-      if (PWM_percent[i] > 100)
-        PWM_percent[i] = 100;
-
-      int j;
-      printf("vals: ");
-      for (j = 0; j < NUM_CHAN; j++)
-        printf("%u ", PWM_percent[j]);
-      printf("\n");
+      PWM_time_d[0] = curr_time - PWM_time_i[0];
     }
   }
 }
@@ -83,10 +64,10 @@ serial_init (47);
 stdout = &uart_output;
 
 // Setup PWM input pins
-DDRB &= ~(PWM_DDB_MASK);
+DDRB &= ~((1<<DDB0));
 
-// Setup pins PB0-PB3 for pin change interrupts
-PCMSK0 |= SET_PWM_PC_MASK;
+// Setup pins for pin change interrupts
+PCMSK0 |= (1<<PCINT0);
 PCICR |= (1<<PCIE0);
 
 // Setup timer
@@ -98,7 +79,9 @@ sei();
 
 while (1)
 {
-
+  printf("test\n");
+  printf("%d \n", PWM_time_d[0]);
+  _delay_ms(500);
 }
 
 // Never reached
