@@ -3,6 +3,7 @@
 #include <avr/interrupt.h>
 #include <stdio.h>
 #include "serial_init.c"
+#include "I2CSlave.h"
 
 #define MAX_COUNT 65535
 // Each count takes about 1.0851 microseconds
@@ -19,6 +20,12 @@
 #define PWM_PINC0 (PINC & (1<<PINC0))
 #define PWM_PINC1 (PINC & (1<<PINC1))
 #define TIMR_PRESC (1<<CS11)
+#define CH1 0
+#define CH2 1
+#define CH3 2
+#define CH4 3
+#define VOLTAGE 4
+#define I2C_ADDRESS 24
 
 unsigned int PWM_stat_i1[2] = {0, 0};
 unsigned int PWM_time_i1[2] = {0, 0};
@@ -32,6 +39,7 @@ unsigned int PWM_time_d2[2] = {0, 0};
 unsigned int PWM_max_d2[2] = {0, 0};
 unsigned int PWM_min_d2[2] = {UINT32_MAX, UINT32_MAX};
 unsigned char PWM_percent2[2] = {0, 0};
+uint8_t message_reg = 0;
 
 
 void update_values(int curr_time, char PWM_stat, unsigned int* PWM_stat_i,
@@ -103,6 +111,26 @@ ISR(PCINT0_vect)
   }
 }
 
+void reg_handler(uint8_t message)
+{
+  message_reg = message;
+  return;
+}
+
+void message_handler()
+{
+  if(message_reg == CH1)
+    TWDR = PWM_percent2[0];
+  else if(message_reg == CH2)
+    TWDR = PWM_percent2[1];
+  else if(message_reg == CH3)
+    TWDR = PWM_percent1[0];
+  else if(message_reg == CH4)
+    TWDR = PWM_percent1[1];
+  else if(message_reg == VOLTAGE)
+    TWDR = 255;
+}
+
 int main(void)
 {
 // Setup serial debug
@@ -121,6 +149,10 @@ PCICR |= ((1<<PCIE1) | (1<<PCIE0));
 // Setup timer
 TCCR1B |= TIMR_PRESC;
 TCNT1 = 0;
+
+// Setup I2C
+I2C_setCallbacks(reg_handler, message_handler);
+I2C_init(I2C_ADDRESS);
 
 // Enable interrupts
 sei();
