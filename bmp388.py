@@ -241,7 +241,7 @@ class DFRobot_BMP388_SPI(DFRobot_BMP388):
     
 class DFRobot_BMP388_I2C(DFRobot_BMP388):
   def __init__(self):
-    self.addr = 119
+    self.addr = 118
     self.i2c = smbus.SMBus(1)
     super(DFRobot_BMP388_I2C,self).__init__()
 

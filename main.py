@@ -3,6 +3,7 @@ import time
 import atmega
 
 bmp388 = bmp388.DFRobot_BMP388_I2C()
+time.sleep(0.5)
 atmega = atmega.atmega()
 
 ## TODO
@@ -20,11 +21,10 @@ def calibrateBMP(sea_level):
 
 def setup():
   ## Wait 10 seconds for the user to calibrate the ATmega
-  time.sleep(10)
+  time.sleep(2)
   
   ## Setup bmp388
-  time.sleep(0.5)
-  calibrateBMP(0)
+  calibrateBMP(512)
 
 ## Begin program ===============================================================
 
@@ -39,9 +39,17 @@ while True:
   ## For now:
   ## Get user input
   roll = 50 - atmega.get_throttle(1)
+  time.sleep(0.05)
   pitch = 50 - atmega.get_throttle(2)
+  time.sleep(0.05)
   throttle = atmega.get_throttle(3)
+  time.sleep(0.05)
   yaw = 50 - atmega.get_throttle(4)
+  time.sleep(0.05)
+
+  print(roll, pitch, throttle, yaw)
+
+  time.sleep(0.5)
 
   ## Motor mixing
   ## Not sure about yaw (just a guess)
