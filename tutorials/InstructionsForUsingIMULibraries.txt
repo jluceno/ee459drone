@@ -9,6 +9,9 @@ source droneenv/bin/activate
 
 now you are in the virtual environment
 
+Install the requirements:
+pip install -r requirements
+
 To run the example code:
 python3 lsm9ds1_simpletest.py
 
