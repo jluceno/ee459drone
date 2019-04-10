@@ -12,6 +12,12 @@ now you are in the virtual environment
 Install the requirements:
 pip install -r requirements
 
+To add any libraries that you are using to the environment:
+install the library in the virtual env-- 
+pip install "library_name" 
+To add currently running libraries to requirements.txt (so you get access to them automatically in the environment)
+pip freeze > requirements.txt 
+
 To run the example code:
 python3 lsm9ds1_simpletest.py
 
