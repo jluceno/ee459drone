@@ -1,0 +1,38 @@
+To access the libraries needed for the IMU & any file that uses circuit playground LSM9DS1 libraries:
+
+Navigate to the ee459drone folder
+From main:
+cd ee459drone
+
+activate the virtual environment:
+source droneenv/bin/activate
+
+now you are in the virtual environment
+
+To run the example code:
+python3 lsm9ds1_simpletest.py
+
+you should see some output to the terminal like this-- 
+
+Acceleration (m/s^2): (1.695,-0.390,13.811)
+Magnetometer (gauss): (0.054,0.425,-0.326)
+Gyroscope (degrees/sec): (-3.981,42.788,36.925)
+Temperature: 23.500C
+Acceleration (m/s^2): (0.214,0.135,9.547)
+Magnetometer (gauss): (0.054,0.419,-0.338)
+Gyroscope (degrees/sec): (0.298,1.470,0.919)
+Temperature: 23.500C
+Acceleration (m/s^2): (0.223,0.137,9.466)
+Magnetometer (gauss): (0.063,0.420,-0.336)
+Gyroscope (degrees/sec): (0.481,1.409,0.849)
+Temperature: 23.500C
+Acceleration (m/s^2): (0.212,0.120,9.607)
+Magnetometer (gauss): (0.054,0.413,-0.331)
+Gyroscope (degrees/sec): (0.158,1.243,1.164)
+Temperature: 24.500C
+Acceleration (m/s^2): (0.161,0.135,9.529)
+Magnetometer (gauss): (0.055,0.412,-0.334)
+Gyroscope (degrees/sec): (0.263,1.146,0.840)
+Temperature: 23.500C
+
+
