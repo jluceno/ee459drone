@@ -53,10 +53,16 @@ while True:
 
   ## Motor mixing
   ## Not sure about yaw (just a guess)
+  '''
   motor0 = throttle + roll - pitch + yaw
   motor1 = throttle - roll - pitch - yaw
   motor2 = throttle - roll + pitch + yaw
   motor3 = throttle + roll + pitch - yaw
+  '''
+  motor1 = throttle - pitch + roll - yaw #ESC 1, front-left: CCW
+  motor2 = throttle - pitch - roll  + yaw #ESC 2, front-right: CW
+  motor3 = throttle + pitch - roll - yaw #ESC 3, rear-right: CCW
+  motor4 = throttle + pitch + roll + yaw #ESC 4, rear-left: CW
 
   ## Output values to ESCs
 
