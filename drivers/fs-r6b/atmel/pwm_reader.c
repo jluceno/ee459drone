@@ -7,10 +7,6 @@
 
 #define MAX_COUNT 65535
 // Each count takes about 1.0851 microseconds
-#define CYCLES_PER_PERIOD 5529
-#define CYCLES_0_THROTTLE 922
-#define CYCLES_100_THROTTLE 1843
-#define NUM_CHAN 4
 #define SET_PWM_PC_MASKC (1<<PCINT8) | (1<<PCINT9)
 #define SET_PWM_PC_MASKB (1<<PCINT0) | (1<<PCINT1)
 #define PWM_DDC_MASK (1<<DDC0) | (1<<DDC1)
@@ -26,6 +22,8 @@
 #define CH4 3
 #define VOLTAGE 4
 #define I2C_ADDRESS 24
+#define MAX_ADC 214
+#define MIN_ADC 154
 
 unsigned int PWM_stat_i1[2] = {0, 0};
 unsigned int PWM_time_i1[2] = {0, 0};
@@ -39,9 +37,19 @@ unsigned int PWM_time_d2[2] = {0, 0};
 unsigned int PWM_max_d2[2] = {1805, 1714};
 unsigned int PWM_min_d2[2] = {909, 816};
 unsigned char PWM_percent2[2] = {0, 0};
-unsigned char output;
+
+uint8_t adc_value; 
+unsigned char output, adc_perc = 0;
 uint8_t message_reg = 0;
 
+void init_acd()
+{
+  // Select reference, make it left adjusted, and read from PC2
+  ADMUX = 0b01100010;
+
+  // Enable ADC and set the divison factor to 128
+  ADCSRA = 0b10000111;
+}
 
 void update_values(int curr_time, char PWM_stat, unsigned int* PWM_stat_i,
  unsigned int* PWM_time_i, unsigned int* PWM_time_d, unsigned int* PWM_max_d,
@@ -126,7 +134,7 @@ void reg_handler(uint8_t message)
   else if(message_reg == CH4)
     output = PWM_percent1[1];
   else if(message_reg == VOLTAGE)
-    output = 255;
+    output = adc_perc;
   return;
 }
 
@@ -139,8 +147,8 @@ int main(void)
 {
 // Setup serial debug
 // Remove this on final build
-serial_init (47);
-stdout = &uart_output;
+//serial_init(47);
+//stdout = &uart_output;
 
 // Setup PWM input pins
 DDRC &= ~(PWM_DDC_MASK);
@@ -154,6 +162,10 @@ PCICR |= ((1<<PCIE1) | (1<<PCIE0));
 // Setup timer
 TCCR1B |= TIMR_PRESC;
 TCNT1 = 0;
+
+// Setup ADC
+DDRC &= ~(1<<DDC2);
+init_acd();
 
 // Setup I2C
 I2C_setCallbacks(reg_handler, message_handler);
@@ -170,6 +182,23 @@ while (1)
   
   //print current percentages
   //printf("%u, %u, %u, %u \n", PWM_percent2[0], PWM_percent2[1], PWM_percent1[0], PWM_percent1[1]);
+   
+  // ADC conversion
+  ADCSRA |= (1 << ADSC);
+
+  //Wait for conversion to finish
+  while (ADCSRA & (1 << ADSC));
+
+  //Read register
+  adc_value = ADCH;
+
+  //Calculate ADC percentage
+  if(adc_value < MIN_ADC)
+    adc_perc = 0;
+  else
+    adc_perc = ((adc_value-MIN_ADC) * 100)/(MAX_ADC - MIN_ADC);
+
+  //printf("%u, %u \n", adc_perc, adc_value);
   //_delay_ms(500);
 }
 
