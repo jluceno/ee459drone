@@ -188,18 +188,18 @@ while True:
   yaw = 50 - atmega.get_data(4)
 
   ## Output battery status
-  battery_perc = int(atmega.get_data(5))
+  battery_perc - 154 = int(atmega.get_data(5))
   print("Battery: ", battery_perc)
   
-  if battery_perc > 75:
+  if battery_perc > 45:
     GPIO.output(4,GPIO.HIGH)
     GPIO.output(17,GPIO.HIGH)
     GPIO.output(18,GPIO.HIGH)
-  elif battery_perc > 50:
+  elif battery_perc > 30:
     GPIO.output(4,GPIO.HIGH)
     GPIO.output(17,GPIO.HIGH)
     GPIO.output(18,GPIO.LOW)
-  elif battery_perc > 0: 
+  elif battery_perc < 10: 
     GPIO.output(4,GPIO.HIGH)
     GPIO.output(17,GPIO.LOW)
     GPIO.output(18,GPIO.LOW)
