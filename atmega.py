@@ -10,21 +10,22 @@ class atmega:
   
   def get_throttle(self, channel):
     if channel == 1:
-      self.bus.write_byte_data(self.addr, 0, 0)
+      self.bus.write_byte(self.addr, 0)
       time.sleep(time_waiting)
-      return self.bus.read_byte_data(self.addr, 0)
     elif channel == 2:
-      self.bus.write_byte_data(self.addr, 0, 1)
+      self.bus.write_byte(self.addr, 1)
       time.sleep(time_waiting)
-      return self.bus.read_byte_data(self.addr, 1)
     elif channel == 3:
-      self.bus.write_byte_data(self.addr, 0, 2)
+      self.bus.write_byte(self.addr, 2)
       time.sleep(time_waiting)
-      return self.bus.read_byte_data(self.addr, 2)
     elif channel == 4:
-      self.bus.write_byte_data(self.addr, 0, 3)
+      self.bus.write_byte(self.addr, 3)
       time.sleep(time_waiting)
-      return self.bus.read_byte_data(self.addr, 3)
+    elif channel == 5:
+      self.bus.write_byte(self.addr, 4)
+      time.sleep(time_waiting)
+      return 
     else:
       return -1
+    return self.bus.read_byte(self.addr)
     
