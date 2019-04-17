@@ -144,13 +144,13 @@ imu_roll = 180 * math.atan2(accel_y, math.sqrt(accel_x*accel_x + accel_z*accel_z
 
 print("imu_pitch: ", imu_pitch)
 print("imu_roll: ", imu_roll)
-
+'''
 # determine if we are in starting position
 roll = 50 - atmega.get_throttle(1)
 pitch = 50 - atmega.get_throttle(2)
 throttle = atmega.get_throttle(3)
 yaw = 50 - atmega.get_throttle(4)
-
+'''
 # if #TODO: find starting conditions PWM acceptable ranges
 
 
@@ -179,27 +179,32 @@ while True:
   
   # Read in the IMU values
   accel_x, accel_y, accel_z = sensor.acceleration
-  gyro_x, gyro_y, gyro_z = sensor.gyro
+  mag_x, mag_y, mag_z = sensor.magnetic
 
   accel_x -= ax_calibration
   accel_y -= ay_calibration
   accel_z -= az_calibration
-  gyro_x -= gx_calibration
-  gyro_y -= gy_calibration
-  gyro_z -= gz_calibration
-
+  mag_x -= mx_calibration
+  mag_y -= my_calibration
+  mag_z -= mz_calibration
+  '''
   print("ax: ", accel_x)
   print("ay: ", accel_y)
   print("az: ", accel_z)
   print("gx: ", gyro_x)
   print("gy: ", gyro_y)
   print("gz: ", gyro_z)
+  '''
+  imu_pitch = 180 * math.atan2(accel_x, math.sqrt(accel_y*accel_y + accel_z*accel_z))/math.pi;
+  imu_roll = 180 * math.atan2(accel_y, math.sqrt(accel_x*accel_x + accel_z*accel_z))/math.pi;
 
+  print("imu_pitch: ", imu_pitch)
+  print("imu_roll: ", imu_roll)
   ## Calculate PID values
 
   ## For now:
   ## Get user input
-  
+  '''
   roll = 50 - atmega.get_throttle(1)
   pitch = 50 - atmega.get_throttle(2)
   throttle = atmega.get_throttle(3)
@@ -221,7 +226,7 @@ while True:
   print("m1: ", motor1)
   print("m2: ", motor2)
   print("m3: ", motor3)
-
+'''
   print("end of loop")
 
   ## Output values to ESCs
