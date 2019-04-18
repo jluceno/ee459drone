@@ -39,7 +39,7 @@ unsigned int PWM_min_d2[2] = {909, 816};
 unsigned char PWM_percent2[2] = {0, 0};
 
 uint8_t adc_value; 
-unsigned char output, adc_perc = 0;
+unsigned char output, adc_perc;
 uint8_t message_reg = 0;
 
 void init_acd()
@@ -134,7 +134,16 @@ void reg_handler(uint8_t message)
   else if(message_reg == CH4)
     output = PWM_percent1[1];
   else if(message_reg == VOLTAGE)
-    output = adc_perc;
+  {
+    // ADC conversion
+    ADCSRA |= (1 << ADSC);
+
+    //Wait for conversion to finish
+    while (ADCSRA & (1 << ADSC));
+
+    //Read register
+    output = ADCH;
+  }
   return;
 }
 
@@ -182,21 +191,12 @@ while (1)
   
   //print current percentages
   //printf("%u, %u, %u, %u \n", PWM_percent2[0], PWM_percent2[1], PWM_percent1[0], PWM_percent1[1]);
-   
-  // ADC conversion
-  ADCSRA |= (1 << ADSC);
-
-  //Wait for conversion to finish
-  while (ADCSRA & (1 << ADSC));
-
-  //Read register
-  adc_value = ADCH;
 
   //Calculate ADC percentage
-  if(adc_value < MIN_ADC)
-    adc_perc = 0;
-  else
-    adc_perc = ((adc_value-MIN_ADC) * 100)/(MAX_ADC - MIN_ADC);
+  // if(adc_value < MIN_ADC)
+  //   adc_perc = 0;
+  // else
+  //   adc_perc = ((adc_value-MIN_ADC) * 100)/(MAX_ADC - MIN_ADC);
 
   //printf("%u, %u \n", adc_perc, adc_value);
   //_delay_ms(500);
