@@ -30,7 +30,27 @@ sensor = adafruit_lsm9ds1.LSM9DS1_I2C(i2c_imu)
 print("HAT setup ...")
 servohat = hat_motors.hatservo(500, 0, 1, 2, 3)
 
+## PID setup
+pid_roll = PID.PID(0.2, 0, 0)
+pid_pitch = PID.PID(0.2, 0, 0)
+pid_yaw = PID.PID(0.2, 0, 0)
+
 ## Globals
+roll_baseline = 0
+pitch_baseline = 0
+yaw_baseline = 0
+
+## Max angles a user can input
+roll_max = 10
+pitch_max = 10
+yaw_max = 10
+
+## Flags
+## Change this if you want to use motor mixing or PID control
+is_PID_control = False
+
+## Params
+## Used to determine the max throttle in motor mixing control
 max_value = 150
 
 def calibrateIMU(numLoops):
@@ -169,17 +189,47 @@ while True:
   # TODO
   ## Read the BMP values
 
-  # TODO
-  ## Calculate PID values ======================================================
-
   ## Get user input 
   roll = 50 - atmega.get_data(1)
   pitch = 50 - atmega.get_data(2)
   throttle = atmega.get_data(3)
   yaw = 50 - atmega.get_data(4)
 
+  ## Calculate PID values or motor mix =========================================
+  
+  if is_PID_control:
+    ## PID control
+    pid_roll.SetPoint = (roll_max * roll/50)
+    pid_pitch.SetPoint = (pitch_max * pitch/50)
+    ##pid_yaw.SetPoint = yaw_baseline + (yaw_max * yaw/50)
+
+    pid_roll.update(imu_roll)
+    pid_pitch.update(imu_pitch)
+    ##pid_yaw.update(None)
+
+    motor1 = pid_pitch.output + pid_roll.output - yaw #ESC 1, front-left: CCW
+    motor2 = pid_pitch.output - pid_roll.output  + yaw #ESC 2, front-right: CW
+    motor3 = pid_pitch.output - pid_roll.output - yaw #ESC 3, rear-right: CCW
+    motor4 = pid_pitch.output + pid_roll.output + yaw #ESC 4, rear-left: CW
+  
+    duty_cycle1 = int((throttle/100 * 0x7fff) + motor1)+0x7fff
+    duty_cycle2 = int((throttle/100 * 0x7fff) + motor2)+0x7fff
+    duty_cycle3 = int((throttle/100 * 0x7fff) + motor3)+0x7fff
+    duty_cycle4 = int((throttle/100 * 0x7fff) + motor4)+0x7fff
+  else:
+    ## Motor mixing
+    motor1 = throttle - pitch + roll - yaw #ESC 1, front-left: CCW
+    motor2 = throttle - pitch - roll  + yaw #ESC 2, front-right: CW
+    motor3 = throttle + pitch - roll - yaw #ESC 3, rear-right: CCW
+    motor4 = throttle + pitch + roll + yaw #ESC 4, rear-left: CW
+    
+    duty_cycle1 = int(motor1/max_value * 0x7fff)+0x7fff
+    duty_cycle2 = int(motor2/max_value * 0x7fff)+0x7fff
+    duty_cycle3 = int(motor3/max_value * 0x7fff)+0x7fff
+    duty_cycle4 = int(motor4/max_value * 0x7fff)+0x7fff
+
   ## Output battery status
-  battery_perc - 154 = int(atmega.get_data(5))
+  battery_perc = int(atmega.get_data(5)) - 154
   print("Battery: ", battery_perc)
   
   if battery_perc > 45:
@@ -195,26 +245,9 @@ while True:
     GPIO.output(17,GPIO.LOW)
     GPIO.output(18,GPIO.LOW)
 
-  ## TEMPORARY =================================================================
-  ## Motor mixing
-  ## Not sure about yaw (just a guess)
-  motor1 = throttle - pitch + roll - yaw #ESC 1, front-left: CCW
-  motor2 = throttle - pitch - roll  + yaw #ESC 2, front-right: CW
-  motor3 = throttle + pitch - roll - yaw #ESC 3, rear-right: CCW
-  motor4 = throttle + pitch + roll + yaw #ESC 4, rear-left: CW
-  
-  duty_cycle1 = int(motor1/max_value * 0x7fff)+0x7fff
-  duty_cycle2 = int(motor2/max_value * 0x7fff)+0x7fff
-  duty_cycle3 = int(motor3/max_value * 0x7fff)+0x7fff
-  duty_cycle4 = int(motor4/max_value * 0x7fff)+0x7fff
-
-  ## END TEMPORARY =============================================================
-
   print("Duty cycles: ", duty_cycle1, duty_cycle2, duty_cycle3, duty_cycle4)
 
   ## Output values to ESCs
-
-  ## Just outputs throttle input directly to ESCs
   ## Duty cycle can be set to 0x0000 to 0xffff
   ## ESCs values: 0x7fff = 0%, 0xffff 100%
   servohat.motorset(servohat.motor1, min(0xffff, max(0x7fff, duty_cycle1)))
