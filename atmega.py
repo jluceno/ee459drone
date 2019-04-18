@@ -38,8 +38,7 @@ class atmega:
       time.sleep(time_waiting)
     elif channel == 5:
       self.bus.write_byte(self.addr, 4)
-      time.sleep(time_waiting)
-      return 
+      time.sleep(time_waiting) 
     else:
       return -1
     return self.bus.read_byte(self.addr)
