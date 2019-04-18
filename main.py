@@ -182,12 +182,20 @@ while True:
   '''
   imu_pitch = 180 * math.atan2(accel_x, math.sqrt(accel_y*accel_y + accel_z*accel_z))/math.pi
   imu_roll = 180 * math.atan2(accel_y, math.sqrt(accel_x*accel_x + accel_z*accel_z))/math.pi
-
+  imu_yaw = 180 * math.atan2(accel_z, math.sqrt(accel_x*accel_x + accel_z* accel_z))/math.pi
+  
   print("imu_pitch: ", imu_pitch)
   print("imu_roll: ", imu_roll)
+  print("imu_yaw: ", imu_yaw)
 
-  # TODO
   ## Read the BMP values
+  pres = bmp388.readPressure() 
+  temp = bmp388.readTemperature()
+  altitude = bmp388.readAltitude()
+
+  print("Temperature: %s C" %temp)
+  print("Pressure : %s Pa" %pres)
+  print("Altitude :%s m" %altitude)
 
   ## Get user input 
   roll = 50 - atmega.get_data(1)
