@@ -1,17 +1,19 @@
 import smbus
 import time
 
-time_waiting = 0.05
-prev_ch1 = 0
-prev_ch2 = 0
-prev_ch3 = 0
-prev_ch4 = 0
-prev_voltage = 0
+
 
 class atmega:
   def __init__(self):
     self.addr = 0x18
     self.bus = smbus.SMBus(1)
+
+    self.time_waiting = 0.01
+    self.prev_ch1 = 0
+    self.prev_ch2 = 0
+    self.prev_ch3 = 0
+    self.prev_ch4 = 0
+    self.prev_voltage = 0
   
   ## Gets input from the controller and battery info. Returns a percentage.
 
@@ -32,43 +34,43 @@ class atmega:
     if channel == 1:
       try:
         self.bus.write_byte(self.addr, 0)
-        time.sleep(time_waiting)
-        prev_ch1 = self.bus.read_byte(self.addr)
+        time.sleep(self.time_waiting)
+        self.prev_ch1 = self.bus.read_byte(self.addr)
       except IOError:
         print("ATmega CH1 I/O error")
-      return prev_ch1
+      return self.prev_ch1
     elif channel == 2:
       try:
         self.bus.write_byte(self.addr, 1)
-        time.sleep(time_waiting)
-        prev_ch2 = self.bus.read_byte(self.addr)
+        time.sleep(self.time_waiting)
+        self.prev_ch2 = self.bus.read_byte(self.addr)
       except IOError:
         print("ATmega CH2 I/O error")
-      return prev_ch2
+      return self.prev_ch2
     elif channel == 3:
       try:
         self.bus.write_byte(self.addr, 2)
-        time.sleep(time_waiting)
-        prev_ch3 = self.bus.read_byte(self.addr)
+        time.sleep(self.time_waiting)
+        self.prev_ch3 = self.bus.read_byte(self.addr)
       except IOError:
         print("ATmega CH3 I/O error")
-      return prev_ch3
+      return self.prev_ch3
     elif channel == 4:
       try:
         self.bus.write_byte(self.addr, 3)
-        time.sleep(time_waiting)
-        prev_ch4 = self.bus.read_byte(self.addr)
+        time.sleep(self.time_waiting)
+        self.prev_ch4 = self.bus.read_byte(self.addr)
       except IOError:
         print("ATmega CH4 I/O error")
-      return prev_ch4
+      return self.prev_ch4
     elif channel == 5:
       try:
         self.bus.write_byte(self.addr, 4)
-        time.sleep(time_waiting)
-        prev_voltage = self.bus.read_byte(self.addr)
+        time.sleep(self.time_waiting)
+        self.prev_voltage = self.bus.read_byte(self.addr)
       except IOError:
         print("ATmega Voltage I/O error")
-      return prev_voltage
+      return self.prev_voltage
     else:
       return -1
     

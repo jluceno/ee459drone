@@ -20,7 +20,7 @@ yaw_max = 1
 ## PID setup
 pid_roll = PID.PID(45, 10, 0)
 pid_pitch = PID.PID(45, 10, 0)
-pid_yaw = PID.PID(0.2, 0, 0)
+pid_yaw = PID.PID(4, 0.02, 0)
 
 ## Flags
 ## Change this if you want to use motor mixing or PID control
@@ -155,9 +155,9 @@ def calibrateIMU(numLoops):
   mags.append(my_avg)
   mags.append(mz_avg)
   gyros = []
-  mags.append(gx_avg)
-  mags.append(gy_avg)
-  mags.append(gz_avg)
+  gyros.append(gx_avg)
+  gyros.append(gy_avg)
+  gyros.append(gz_avg)
   retval = []
   retval.append(accelerations)
   retval.append(mags)
@@ -185,44 +185,45 @@ def setup():
 try:
   setup()
 
-  ## Setup IMU
-  print("Calibrating IMU ...")
-  imu_vals = None
-  imu_calibrated = False
+  # ## Setup IMU
+  # print("Calibrating IMU ...")
+  # imu_vals = None
+  # imu_calibrated = False
 
-  while not imu_calibrated:
-    try:
-      imu_vals = calibrateIMU(5000)
-      imu_calibrated = True
-    except IOError:
-      print("Retrying IMU calibration ...")
+  # while not imu_calibrated:
+  #   try:
+  #     imu_vals = calibrateIMU(20000)
+  #     imu_calibrated = True
+  #   except IOError:
+  #     print("Retrying IMU calibration ...")
 
-  ax_calibration = imu_vals[0][0]
-  ay_calibration = imu_vals[0][1]
-  az_calibration = imu_vals[0][2] - 9.297254987947468
+  ax_calibration = -0.3509821501756853
+  ay_calibration = -0.10137417272018709
+  az_calibration = -0.004894602377033763 - 9.297254987947468
 
-  print("ax_calibration: ", str(ax_calibration))
-  print("ay_calibration: ", str(ay_calibration))
-  print("az_calibration: ", str(az_calibration))
+  # print("ax_calibration: ", str(ax_calibration))
+  # print("ay_calibration: ", str(ay_calibration))
+  # print("az_calibration: ", str(az_calibration))
 
-  mx_calibration = imu_vals[1][0]
-  my_calibration = imu_vals[1][1]
-  mz_calibration = imu_vals[1][2]
+  mx_calibration = -0.5304085779999891
+  my_calibration = 0.34171776800001596
+  mz_calibration = -0.2928921099999922
 
-  print("mx_calibration: ", str(mx_calibration))
-  print("my_calibration: ", str(my_calibration))
-  print("mz_calibration: ", str(mz_calibration))
+  # print("mx_calibration: ", str(mx_calibration))
+  # print("my_calibration: ", str(my_calibration))
+  # print("mz_calibration: ", str(mz_calibration))
 
-  gx_calibration = imu_vals[2][0]
-  gy_calibration = imu_vals[2][1]
-  gz_calibration = imu_vals[2][2]
+  gx_calibration = 0.0663263125000002
+  gy_calibration = 1.7302792499999993
+  gz_calibration = 1.178446500000009
 
-  print("gx_calibration: ", str(gx_calibration))
-  print("gy_calibration: ", str(gy_calibration))
-  print("gz_calibration: ", str(gz_calibration))
+  # print("gx_calibration: ", str(gx_calibration))
+  # print("gy_calibration: ", str(gy_calibration))
+  # print("gz_calibration: ", str(gz_calibration))
 
   ## Main loop
   while True:
+    time_init = time.time()
     ## Read the sensor values ====================================================
 
     # Read in the IMU values
@@ -240,13 +241,12 @@ try:
     gyro_y -= gy_calibration
     gyro_z -= gz_calibration
 
-    print("ax: ", accel_x)
-    print("ay: ", accel_y)
-    print("az: ", accel_z)
-    print("gx: ", gyro_x)
-    print("gy: ", gyro_y)
-    print("gz: ", gyro_z)
-    time.sleep(0.5)
+    # print("ax: ", accel_x)
+    # print("ay: ", accel_y)
+    # print("az: ", accel_z)
+    # print("gx: ", gyro_x)
+    # print("gy: ", gyro_y)
+    # print("gz: ", gyro_z)
     # vals = calc_Roll_Pitch_Yaw(accel_x, accel_y, accel_z, mag_x, mag_y, mag_z)
 
     # imu_pitch = vals[0]
@@ -257,9 +257,9 @@ try:
     imu_roll = -180 * math.atan2(accel_y, math.sqrt(accel_x*accel_x + accel_z*accel_z))/ pie
     imu_yaw = 0
 
-    print("imu_pitch: ", imu_pitch)
-    print("imu_roll: ", imu_roll)
-    print("imu_yaw: ", imu_yaw)
+    # print("imu_pitch: ", imu_pitch)
+    # print("imu_roll: ", imu_roll)
+    # print("imu_yaw: ", imu_yaw)
 
     ## Read the BMP values
     pres = 0
@@ -277,9 +277,9 @@ try:
       temp = prev_temp
       altitude = prev_altitude
 
-    print("Temperature: %s C" %temp)
-    print("Pressure : %s Pa" %pres)
-    print("Altitude :%s m" %altitude)
+    # print("Temperature: %s C" %temp)
+    # print("Pressure : %s Pa" %pres)
+    # print("Altitude :%s m" %altitude)
 
     ## Get user input 
     roll = 50 - atmega.get_data(1)
@@ -304,7 +304,7 @@ try:
 
       pid_roll.update(imu_roll)
       pid_pitch.update(imu_pitch)
-      pid_yaw.update(None)
+      pid_yaw.update(gyro_z)
 
       motor1 = -pid_pitch.output + pid_roll.output - pid_yaw.output #ESC 1, front-left: CCW
       motor2 = -pid_pitch.output - pid_roll.output  + pid_yaw.output #ESC 2, front-right: CW
@@ -365,14 +365,19 @@ try:
       usr_input = "n"
       while usr_input == "n":
         time.sleep(2)
+
+        ## gains args: <roll/pitch p> <roll/pitch i> <roll/pitch d> <yaw p> <yaw i> <yaw d>
         usr_input = input("Do you want to fly again y/n: ")
         gains = usr_input.split(" ")
         pid_roll.setKp(float(gains[0]))
         pid_roll.setKi(float(gains[1]))
         pid_roll.setKd(float(gains[2]))
-        pid_pitch.setKp(float(gains[3]))
-        pid_pitch.setKi(float(gains[4]))
-        pid_pitch.setKd(float(gains[5]))
+        pid_pitch.setKp(float(gains[0]))
+        pid_pitch.setKi(float(gains[1]))
+        pid_pitch.setKd(float(gains[2]))
+        pid_yaw.setKp(float(gains[3]))
+        pid_yaw.setKi(float(gains[4]))
+        pid_yaw.setKd(float(gains[5]))
 
     print("Duty cycles: ", round((duty_cycle1 - 0x7fff)/0xffff * 100), round((duty_cycle2 - 0x7fff)/0xffff * 100),
       round((duty_cycle3 - 0x7fff)/0xffff * 100), round((duty_cycle4 - 0x7fff)/0xffff * 100))
@@ -384,6 +389,10 @@ try:
     servohat.motorset(servohat.motor2, min(0xffff, max(0x7fff, duty_cycle2)))
     servohat.motorset(servohat.motor3, min(0xffff, max(0x7fff, duty_cycle3)))
     servohat.motorset(servohat.motor4, min(0xffff, max(0x7fff, duty_cycle4)))
+
+    time_f = time.time()
+    time_d = time_f - time_init
+    print("Time difference: ", time_d)
 
     ## Loop again
 except KeyboardInterrupt:
