@@ -18,13 +18,13 @@ pitch_max = 10
 yaw_max = 10
 
 ## PID setup
-pid_roll = PID.PID(0.2, 0, 0)
-pid_pitch = PID.PID(0.2, 0, 0)
+pid_roll = PID.PID(50, 0, 0)
+pid_pitch = PID.PID(50, 0, 0)
 pid_yaw = PID.PID(0.2, 0, 0)
 
 ## Flags
 ## Change this if you want to use motor mixing or PID control
-is_PID_control = False
+is_PID_control = True
 
 ## Params
 ## Used to determine the max throttle in motor mixing control
@@ -32,14 +32,17 @@ max_value = 150
 
 ## Set sensitivity of the sticks. Only affects motor mixing.
 throttle_sensitivity = 1
-roll_sensitivity = 1
-pitch_sensitivity = 1
+roll_sensitivity = 0.5
+pitch_sensitivity = 0.5
 yaw_sensitivity = 1
 
 ## What is the default angle?.
 roll_baseline = 0
 pitch_baseline = 0
 yaw_baseline = 0
+
+## Current sea level pressure
+sealevel = 1015
 
 ## END SET THESE ===============================================================
 
@@ -187,9 +190,6 @@ def calibrateIMU(numLoops):
   retval.append(mags)
   return retval
 
-def calibrateBMP(sea_level):
-  bmp388_dev.readCalibratedAltitude(sea_level)
-
 def setupLEDs():
   GPIO.setmode(GPIO.BCM)
   GPIO.setwarnings(False)
@@ -202,182 +202,196 @@ def setupLEDs():
 
 
 def setup():  
-  ## Setup bmp388
-  print("Calibrating BMP ...")
-  bmp388_calibrated = False
-
-  while not bmp388_calibrated:
-    try:
-      calibrateBMP(512)
-      bmp388_calibrated = True
-    except:
-      print("Retrying BMP calibration ...")
-
   ## Setup LEDs
-  print("Setting up LEDs ...")
+  print("LED setup ...")
   setupLEDs()
 
 ## END FUNCTIONS ===============================================================
 ## Begin program ===============================================================
+try:
+  setup()
 
-setup()
+  ## Setup IMU
+  print("Calibrating IMU ...")
+  imu_vals = None
+  imu_calibrated = False
 
-## Setup IMU
-print("Calibrating IMU ...")
-imu_vals = None
-imu_calibrated = False
+  while not imu_calibrated:
+    try:
+      imu_vals = calibrateIMU(5000)
+      imu_calibrated = True
+    except IOError:
+      print("Retrying IMU calibration ...")
 
-while not imu_calibrated:
-  try:
-    imu_vals = calibrateIMU(5000)
-    imu_calibrated = True
-  except IOError:
-    print("Retrying IMU calibration ...")
+  print(imu_vals)
 
-print(imu_vals)
+  ax_calibration = imu_vals[0][0]
+  ay_calibration = imu_vals[0][1]
+  az_calibration = imu_vals[0][2] - 9.297254987947468
 
-ax_calibration = imu_vals[0][0]
-ay_calibration = imu_vals[0][1]
-az_calibration = imu_vals[0][2] - 9.297254987947468
+  print("raw az_calib: ", imu_vals[0][2])
+  print("az_calib: ", az_calibration)
 
-print("raw az_calib: ", imu_vals[0][2])
-print("az_calib: ", az_calibration)
+  print("ax_calibration: ", str(ax_calibration))
+  print("ay_calibration: ", str(ay_calibration))
+  print("az_calibration: ", str(az_calibration))
 
-print("ax_calibration: ", str(ax_calibration))
-print("ay_calibration: ", str(ay_calibration))
-print("az_calibration: ", str(az_calibration))
+  mx_calibration = imu_vals[1][0]
+  my_calibration = imu_vals[1][1]
+  mz_calibration = imu_vals[1][2]
 
-mx_calibration = imu_vals[1][0]
-my_calibration = imu_vals[1][1]
-mz_calibration = imu_vals[1][2]
+  print("mx_calibration: ", str(mx_calibration))
+  print("my_calibration: ", str(my_calibration))
+  print("mz_calibration: ", str(mz_calibration))
 
-print("mx_calibration: ", str(mx_calibration))
-print("my_calibration: ", str(my_calibration))
-print("mz_calibration: ", str(mz_calibration))
+  ## Main loop
+  while True:
+    ## Read the sensor values ====================================================
 
-## Main loop
-while True:
-  ## Read the sensor values ====================================================
+    # Read in the IMU values
+    accel_x, accel_y, accel_z = sensor.acceleration
+    mag_x, mag_y, mag_z = sensor.magnetic
 
-  # Read in the IMU values
-  accel_x, accel_y, accel_z = sensor.acceleration
-  mag_x, mag_y, mag_z = sensor.magnetic
+    accel_x -= ax_calibration
+    accel_y -= ay_calibration
+    accel_z -= az_calibration
+    mag_x -= mx_calibration
+    mag_y -= my_calibration
+    mag_z -= mz_calibration
+    '''
+    print("ax: ", accel_x)
+    print("ay: ", accel_y)
+    print("az: ", accel_z)
+    print("gx: ", gyro_x)
+    print("gy: ", gyro_y)
+    print("gz: ", gyro_z)
+    '''
+    vals = calc_Roll_Pitch_Yaw(accel_x, accel_y, accel_z, mag_x, mag_y, mag_z)
 
-  accel_x -= ax_calibration
-  accel_y -= ay_calibration
-  accel_z -= az_calibration
-  mag_x -= mx_calibration
-  mag_y -= my_calibration
-  mag_z -= mz_calibration
-  '''
-  print("ax: ", accel_x)
-  print("ay: ", accel_y)
-  print("az: ", accel_z)
-  print("gx: ", gyro_x)
-  print("gy: ", gyro_y)
-  print("gz: ", gyro_z)
-  '''
-  vals = calc_Roll_Pitch_Yaw(accel_x, accel_y, accel_z, mag_x, mag_y, mag_z)
-  
-  imu_pitch = vals[0]
-  imu_roll = vals[1]
-  imu_yaw = vals[2]
+    imu_pitch = vals[0]
+    imu_roll = vals[1]
+    imu_yaw = vals[2]
 
-  print("imu_pitch: ", imu_pitch)
-  print("imu_roll: ", imu_roll)
-  print("imu_yaw: ", imu_yaw)
+    print("imu_pitch: ", imu_pitch)
+    print("imu_roll: ", imu_roll)
+    print("imu_yaw: ", imu_yaw)
 
-  ## Read the BMP values
-  pres = 0
-  temp = 0
-  altitude = 0
-  try:
-    pres = bmp388_dev.readPressure()
-    temp = bmp388_dev.readTemperature()
-    altitude = bmp388_dev.readAltitude()
-    prev_pres = pres
-    prev_temp = temp
-    prev_altitude = altitude
-  except IOError:
-    pres = prev_pres
-    temp = prev_temp
-    altitude = prev_altitude
+    ## Read the BMP values
+    pres = 0
+    temp = 0
+    altitude = 0
+    try:
+      pres = bmp388_dev.readPressure()
+      temp = bmp388_dev.readTemperature()
+      altitude = bmp388_dev.readCalibratedAltitude(101500)
+      prev_pres = pres
+      prev_temp = temp
+      prev_altitude = altitude
+    except IOError:
+      pres = prev_pres
+      temp = prev_temp
+      altitude = prev_altitude
 
-  print("Temperature: %s C" %temp)
-  print("Pressure : %s Pa" %pres)
-  print("Altitude :%s m" %altitude)
+    print("Temperature: %s C" %temp)
+    print("Pressure : %s Pa" %pres)
+    print("Altitude :%s m" %altitude)
 
-  ## Get user input 
-  roll = 50 - atmega.get_data(1)
-  pitch = 50 - atmega.get_data(2)
-  throttle = atmega.get_data(3)
-  yaw = 50 - atmega.get_data(4)
+    ## Get user input 
+    roll = 50 - atmega.get_data(1)
+    pitch = 50 - atmega.get_data(2)
+    throttle = atmega.get_data(3)
+    yaw = 50 - atmega.get_data(4)
 
-  ## Calculate PID values or motor mix =========================================
-  
-  if is_PID_control:
-    ## PID control
-    pid_roll.SetPoint = (roll_max * roll/50)
-    pid_pitch.SetPoint = (pitch_max * pitch/50)
-    ##pid_yaw.SetPoint = yaw_baseline + (yaw_max * yaw/50)
+    ## Calculate PID values or motor mix =========================================
 
-    pid_roll.update(imu_roll)
-    pid_pitch.update(imu_pitch)
-    ##pid_yaw.update(None)
+    if is_PID_control:
+      ## PID control
+      pid_roll.SetPoint = (roll_max * roll/50)
+      pid_pitch.SetPoint = (pitch_max * pitch/50)
+      ##pid_yaw.SetPoint = yaw_baseline + (yaw_max * yaw/50)
 
-    motor1 = pid_pitch.output + pid_roll.output - yaw #ESC 1, front-left: CCW
-    motor2 = pid_pitch.output - pid_roll.output  + yaw #ESC 2, front-right: CW
-    motor3 = pid_pitch.output - pid_roll.output - yaw #ESC 3, rear-right: CCW
-    motor4 = pid_pitch.output + pid_roll.output + yaw #ESC 4, rear-left: CW
-  
-    duty_cycle1 = int((throttle/100 * 0x7fff) + motor1)+0x7fff
-    duty_cycle2 = int((throttle/100 * 0x7fff) + motor2)+0x7fff
-    duty_cycle3 = int((throttle/100 * 0x7fff) + motor3)+0x7fff
-    duty_cycle4 = int((throttle/100 * 0x7fff) + motor4)+0x7fff
-  else:
-    ## Motor mixing
-    throttle *= throttle_sensitivity
-    roll *= roll_sensitivity
-    pitch *= pitch_sensitivity
-    yaw *= yaw_sensitivity
-     
-    motor1 = throttle - pitch + roll - yaw #ESC 1, front-left: CCW
-    motor2 = throttle - pitch - roll  + yaw #ESC 2, front-right: CW
-    motor3 = throttle + pitch - roll - yaw #ESC 3, rear-right: CCW
-    motor4 = throttle + pitch + roll + yaw #ESC 4, rear-left: CW
-    
-    duty_cycle1 = int(motor1/max_value * 0x7fff)+0x7fff
-    duty_cycle2 = int(motor2/max_value * 0x7fff)+0x7fff
-    duty_cycle3 = int(motor3/max_value * 0x7fff)+0x7fff
-    duty_cycle4 = int(motor4/max_value * 0x7fff)+0x7fff
+      pid_roll.update(imu_roll)
+      pid_pitch.update(imu_pitch)
+      ##pid_yaw.update(None)
 
-  ## Output battery status
-  battery_perc = (int(atmega.get_data(5)) - 154)/(189-154)
-  print("Battery: ", battery_perc)
-  
-  if battery_perc > 50:
-    GPIO.output(4,GPIO.HIGH)
-    GPIO.output(17,GPIO.HIGH)
-    GPIO.output(18,GPIO.HIGH)
-  elif battery_perc > 30:
-    GPIO.output(4,GPIO.HIGH)
-    GPIO.output(17,GPIO.HIGH)
-    GPIO.output(18,GPIO.LOW)
-  elif battery_perc < 10: 
-    GPIO.output(4,GPIO.HIGH)
-    GPIO.output(17,GPIO.LOW)
-    GPIO.output(18,GPIO.LOW)
+      motor1 = -pid_pitch.output + pid_roll.output - yaw #ESC 1, front-left: CCW
+      motor2 = -pid_pitch.output - pid_roll.output  + yaw #ESC 2, front-right: CW
+      motor3 = pid_pitch.output - pid_roll.output - yaw #ESC 3, rear-right: CCW
+      motor4 = pid_pitch.output + pid_roll.output + yaw #ESC 4, rear-left: CW
 
-  print("Duty cycles: ", duty_cycle1, duty_cycle2, duty_cycle3, duty_cycle4)
+      yaw *= yaw_sensitivity
+      throttle *= throttle_sensitivity
 
-  ## Output values to ESCs
-  ## Duty cycle can be set to 0x0000 to 0xffff
-  ## ESCs values: 0x7fff = 0%, 0xffff 100%
-  servohat.motorset(servohat.motor1, min(0xffff, max(0x7fff, duty_cycle1)))
-  servohat.motorset(servohat.motor2, min(0xffff, max(0x7fff, duty_cycle2)))
-  servohat.motorset(servohat.motor3, min(0xffff, max(0x7fff, duty_cycle3)))
-  servohat.motorset(servohat.motor4, min(0xffff, max(0x7fff, duty_cycle4)))
+      print(motor1, motor2, motor3, motor4)
 
-  ## Loop again
+      duty_cycle1 = int(((throttle - yaw)/100 * 0x7fff) + motor1)+0x7fff
+      duty_cycle2 = int(((throttle + yaw)/100 * 0x7fff) + motor2)+0x7fff
+      duty_cycle3 = int(((throttle - yaw)/100 * 0x7fff) + motor3)+0x7fff
+      duty_cycle4 = int(((throttle + yaw)/100 * 0x7fff) + motor4)+0x7fff
+    else:
+      ## Motor mixing
+      throttle *= throttle_sensitivity
+      roll *= roll_sensitivity
+      pitch *= pitch_sensitivity
+      yaw *= yaw_sensitivity
+        
+      motor1 = throttle - pitch + roll - yaw #ESC 1, front-left: CCW
+      motor2 = throttle - pitch - roll  + yaw #ESC 2, front-right: CW
+      motor3 = throttle + pitch - roll - yaw #ESC 3, rear-right: CCW
+      motor4 = throttle + pitch + roll + yaw #ESC 4, rear-left: CW
+      
+      duty_cycle1 = int(motor1/max_value * 0x7fff)+0x7fff
+      duty_cycle2 = int(motor2/max_value * 0x7fff)+0x7fff
+      duty_cycle3 = int(motor3/max_value * 0x7fff)+0x7fff
+      duty_cycle4 = int(motor4/max_value * 0x7fff)+0x7fff
+
+    ## Output battery status
+    battery_perc = (int(atmega.get_data(5)) - 154)/(189-154) * 100
+    print("Battery: ", battery_perc)
+
+    if battery_perc > 50:
+      GPIO.output(4,GPIO.HIGH)
+      GPIO.output(17,GPIO.HIGH)
+      GPIO.output(18,GPIO.HIGH)
+    elif battery_perc > 30:
+      GPIO.output(4,GPIO.HIGH)
+      GPIO.output(17,GPIO.HIGH)
+      GPIO.output(18,GPIO.LOW)
+    elif battery_perc < 10: 
+      GPIO.output(4,GPIO.HIGH)
+      GPIO.output(17,GPIO.LOW)
+      GPIO.output(18,GPIO.LOW)
+
+    if throttle < 3:
+      duty_cycle1 = 0x7fff
+      duty_cycle2 = 0x7fff
+      duty_cycle3 = 0x7fff
+      duty_cycle4 = 0x7fff
+      servohat.motorset(servohat.motor1, min(0xffff, max(0x7fff, duty_cycle1)))
+      servohat.motorset(servohat.motor2, min(0xffff, max(0x7fff, duty_cycle2)))
+      servohat.motorset(servohat.motor3, min(0xffff, max(0x7fff, duty_cycle3)))
+      servohat.motorset(servohat.motor4, min(0xffff, max(0x7fff, duty_cycle4)))
+      usr_input = "n"
+      while usr_input == "n":
+        time.sleep(2)
+        usr_input = input("Do you want to fly again y/n: ")
+    print("Duty cycles: ", (duty_cycle1 - 0x7fff)/0xffff * 100, (duty_cycle2 - 0x7fff)/0xffff * 100,
+      (duty_cycle3 - 0x7fff)/0xffff * 100, (duty_cycle4 - 0x7fff)/0xffff * 100)
+
+    ## Output values to ESCs
+    ## Duty cycle can be set to 0x0000 to 0xffff
+    ## ESCs values: 0x7fff = 0%, 0xffff 100%
+    servohat.motorset(servohat.motor1, min(0xffff, max(0x7fff, duty_cycle1)))
+    servohat.motorset(servohat.motor2, min(0xffff, max(0x7fff, duty_cycle2)))
+    servohat.motorset(servohat.motor3, min(0xffff, max(0x7fff, duty_cycle3)))
+    servohat.motorset(servohat.motor4, min(0xffff, max(0x7fff, duty_cycle4)))
+
+    ## Loop again
+except:
+  print("Motors off!")
+  servohat.motorset(servohat.motor1, 0)
+  servohat.motorset(servohat.motor2, 0)
+  servohat.motorset(servohat.motor3, 0)
+  servohat.motorset(servohat.motor4, 0)
 
 
