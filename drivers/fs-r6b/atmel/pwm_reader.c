@@ -22,7 +22,7 @@
 #define CH4 3
 #define VOLTAGE 4
 #define I2C_ADDRESS 24
-#define MAX_ADC 214
+#define MAX_ADC 189
 #define MIN_ADC 154
 
 unsigned int PWM_stat_i1[2] = {0, 0};

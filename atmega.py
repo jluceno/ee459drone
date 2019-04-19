@@ -35,7 +35,7 @@ class atmega:
         time.sleep(time_waiting)
         prev_ch1 = self.bus.read_byte(self.addr)
         return prev_ch1
-      except:
+      except IOError:
         print("ATmega CH1 I/O error")
         return prev_ch1
     elif channel == 2:
@@ -44,7 +44,7 @@ class atmega:
         time.sleep(time_waiting)
         prev_ch2 = self.bus.read_byte(self.addr)
         return prev_ch2
-      except:
+      except IOError:
         print("ATmega CH2 I/O error")
         return prev_ch2
     elif channel == 3:
@@ -53,7 +53,7 @@ class atmega:
         time.sleep(time_waiting)
         prev_ch3 = self.bus.read_byte(self.addr)
         return prev_ch3
-      except:
+      except IOError:
         print("ATmega CH3 I/O error")
         return prev_ch3
     elif channel == 4:
@@ -62,16 +62,16 @@ class atmega:
         time.sleep(time_waiting)
         prev_ch4 = self.bus.read_byte(self.addr)
         return prev_ch4
-      except:
+      except IOError:
         print("ATmega CH4 I/O error")
         return prev_ch4
     elif channel == 5:
       try:
-        self.bus.write_byte(self.addr, 1)
+        self.bus.write_byte(self.addr, 4)
         time.sleep(time_waiting)
         prev_voltage = self.bus.read_byte(self.addr)
         return prev_voltage
-      except:
+      except IOError:
         print("ATmega Voltage I/O error")
         return prev_voltage
     else:

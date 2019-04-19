@@ -48,14 +48,14 @@ print("Starting PI drone ...")
 ## BMP setup
 print("BMP setup ...")
 bmp388_set = False
+bmp388_dev = None
 
-bmp388 = None
-while ~bmp388_set:
+while not bmp388_set:
   try:
-    bmp388 = bmp388.DFRobot_BMP388_I2C()
+    bmp388_dev = bmp388.DFRobot_BMP388_I2C()
     bmp388_set = True
     time.sleep(3)
-  except:
+  except IOError:
     print("Retrying BMP setup ...")
 
 ## ATmega setup
@@ -68,11 +68,12 @@ i2c_imu = None
 sensor = None
 imu_set = False
 
-while ~imu_set:
+while not imu_set:
   try:
     i2c_imu = busio.I2C(board.SCL, board.SDA)
     sensor = adafruit_lsm9ds1.LSM9DS1_I2C(i2c_imu)
-  except:
+    imu_set = True
+  except IOError:
     print("Retrying IMU setup ...")
 
 
@@ -81,10 +82,11 @@ print("HAT setup ...")
 servohat = None
 hat_set = False
 
-while ~hat_set:
+while not hat_set:
   try:
     servohat = hat_motors.hatservo(500, 0, 1, 2, 3)
-  except:
+    hat_set = True
+  except IOError:
     print("Retrying HAT setup ...")
 
 
@@ -186,7 +188,7 @@ def calibrateIMU(numLoops):
   return retval
 
 def calibrateBMP(sea_level):
-  bmp388.readCalibratedAltitude(sea_level)
+  bmp388_dev.readCalibratedAltitude(sea_level)
 
 def setupLEDs():
   GPIO.setmode(GPIO.BCM)
@@ -204,9 +206,10 @@ def setup():
   print("Calibrating BMP ...")
   bmp388_calibrated = False
 
-  while ~bmp388_calibrated:
+  while not bmp388_calibrated:
     try:
       calibrateBMP(512)
+      bmp388_calibrated = True
     except:
       print("Retrying BMP calibration ...")
 
@@ -224,10 +227,11 @@ print("Calibrating IMU ...")
 imu_vals = None
 imu_calibrated = False
 
-while ~hat_set:
+while not imu_calibrated:
   try:
     imu_vals = calibrateIMU(5000)
-  except:
+    imu_calibrated = True
+  except IOError:
     print("Retrying IMU calibration ...")
 
 print(imu_vals)
@@ -288,13 +292,13 @@ while True:
   temp = 0
   altitude = 0
   try:
-    pres = bmp388.readPressure()
-    temp = bmp388.readTemperature()
-    altitude = bmp388.readAltitude()
+    pres = bmp388_dev.readPressure()
+    temp = bmp388_dev.readTemperature()
+    altitude = bmp388_dev.readAltitude()
     prev_pres = pres
     prev_temp = temp
     prev_altitude = altitude
-  except:
+  except IOError:
     pres = prev_pres
     temp = prev_temp
     altitude = prev_altitude
@@ -348,10 +352,10 @@ while True:
     duty_cycle4 = int(motor4/max_value * 0x7fff)+0x7fff
 
   ## Output battery status
-  battery_perc = int(atmega.get_data(5)) - 154
+  battery_perc = (int(atmega.get_data(5)) - 154)/(189-154)
   print("Battery: ", battery_perc)
   
-  if battery_perc > 45:
+  if battery_perc > 50:
     GPIO.output(4,GPIO.HIGH)
     GPIO.output(17,GPIO.HIGH)
     GPIO.output(18,GPIO.HIGH)
