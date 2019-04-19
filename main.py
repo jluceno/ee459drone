@@ -10,40 +10,17 @@ import sys
 import math
 import PID
 
-print("Starting PI drone ...")
+## SET THESE ===================================================================
 
-## BMP setup
-print("BMP setup ...")
-bmp388 = bmp388.DFRobot_BMP388_I2C()
-time.sleep(3)
-
-## ATmega setup
-print("ATmega setup ...")
-atmega = atmega.atmega()
-
-## IMU setup
-print("IMU setup ...")
-i2c_imu = busio.I2C(board.SCL, board.SDA)
-sensor = adafruit_lsm9ds1.LSM9DS1_I2C(i2c_imu)
-
-## Servo hat setup
-print("HAT setup ...")
-servohat = hat_motors.hatservo(500, 0, 1, 2, 3)
+## Max angles a user can set as the goal
+roll_max = 10
+pitch_max = 10
+yaw_max = 10
 
 ## PID setup
 pid_roll = PID.PID(0.2, 0, 0)
 pid_pitch = PID.PID(0.2, 0, 0)
 pid_yaw = PID.PID(0.2, 0, 0)
-
-## Globals
-roll_baseline = 0
-pitch_baseline = 0
-yaw_baseline = 0
-
-## Max angles a user can input
-roll_max = 10
-pitch_max = 10
-yaw_max = 10
 
 ## Flags
 ## Change this if you want to use motor mixing or PID control
@@ -52,6 +29,106 @@ is_PID_control = False
 ## Params
 ## Used to determine the max throttle in motor mixing control
 max_value = 150
+
+## Set sensitivity of the sticks. Only affects motor mixing.
+throttle_sensitivity = 1
+roll_sensitivity = 1
+pitch_sensitivity = 1
+yaw_sensitivity = 1
+
+## What is the default angle?.
+roll_baseline = 0
+pitch_baseline = 0
+yaw_baseline = 0
+
+## END SET THESE ===============================================================
+
+print("Starting PI drone ...")
+
+## BMP setup
+print("BMP setup ...")
+bmp388_set = False
+
+bmp388 = None
+while ~bmp388_set:
+  try:
+    bmp388 = bmp388.DFRobot_BMP388_I2C()
+    bmp388_set = True
+    time.sleep(3)
+  except:
+    print("Retrying BMP setup ...")
+
+## ATmega setup
+print("ATmega setup ...")
+atmega = atmega.atmega()
+
+## IMU setup
+print("IMU setup ...")
+i2c_imu = None
+sensor = None
+imu_set = False
+
+while ~imu_set:
+  try:
+    i2c_imu = busio.I2C(board.SCL, board.SDA)
+    sensor = adafruit_lsm9ds1.LSM9DS1_I2C(i2c_imu)
+  except:
+    print("Retrying IMU setup ...")
+
+
+## Servo hat setup
+print("HAT setup ...")
+servohat = None
+hat_set = False
+
+while ~hat_set:
+  try:
+    servohat = hat_motors.hatservo(500, 0, 1, 2, 3)
+  except:
+    print("Retrying HAT setup ...")
+
+
+## Globals
+pie = math.pi
+declination = -11.93 # for IMU Yaw calculation
+prev_pres = 0
+prev_altitude = 0
+prev_temp = 0
+
+## FUNCTIONS ===================================================================
+
+def calc_Roll_Pitch_Yaw(ax,ay,az,mx,my,mz):
+  roll = math.atan2(ax, az)
+  pitch = math.atan2(-ax, math.sqrt(ay * ay + az * az))
+
+  yaw = 0.0
+  if my == 0:
+    if mx < 0:
+      yaw = pie
+    else:
+      yaw = 0
+  else:
+    yaw = math.atan2(mx, my)
+    
+  yaw -= (declination * pie / 180)
+
+  if (yaw > pie):
+    yaw -= (2 * pie)
+  elif (yaw < -pie):
+    yaw += (2 * pie)
+
+  # Convert everything from radians to degrees:
+  yaw *= (180.0 / pie)
+  pitch *= (180.0 / pie)
+  roll  *= (180.0 / pie) 
+
+  # yaw += 180.0 # to change to [0,360] range
+
+  retval = []
+  retval.append(pitch)
+  retval.append(roll)
+  retval.append(yaw)
+  return retval
 
 def calibrateIMU(numLoops):
   ax_avg = 0
@@ -81,6 +158,7 @@ def calibrateIMU(numLoops):
   mx_avg /= numLoops
   my_avg /= numLoops
   mz_avg /= numLoops
+
   # gx_avg /= numLoops
   # gy_avg /= numLoops
   # gz_avg /= numLoops
@@ -124,27 +202,42 @@ def setupLEDs():
 def setup():  
   ## Setup bmp388
   print("Calibrating BMP ...")
-  calibrateBMP(512)
-  
+  bmp388_calibrated = False
+
+  while ~bmp388_calibrated:
+    try:
+      calibrateBMP(512)
+    except:
+      print("Retrying BMP calibration ...")
 
   ## Setup LEDs
   print("Setting up LEDs ...")
   setupLEDs()
 
-
+## END FUNCTIONS ===============================================================
 ## Begin program ===============================================================
 
 setup()
 
 ## Setup IMU
 print("Calibrating IMU ...")
-imu_vals = calibrateIMU(5000)
+imu_vals = None
+imu_calibrated = False
+
+while ~hat_set:
+  try:
+    imu_vals = calibrateIMU(5000)
+  except:
+    print("Retrying IMU calibration ...")
 
 print(imu_vals)
 
 ax_calibration = imu_vals[0][0]
 ay_calibration = imu_vals[0][1]
-az_calibration = imu_vals[0][2]
+az_calibration = imu_vals[0][2] - 9.297254987947468
+
+print("raw az_calib: ", imu_vals[0][2])
+print("az_calib: ", az_calibration)
 
 print("ax_calibration: ", str(ax_calibration))
 print("ay_calibration: ", str(ay_calibration))
@@ -180,18 +273,31 @@ while True:
   print("gy: ", gyro_y)
   print("gz: ", gyro_z)
   '''
-  imu_pitch = 180 * math.atan2(accel_x, math.sqrt(accel_y*accel_y + accel_z*accel_z))/math.pi
-  imu_roll = 180 * math.atan2(accel_y, math.sqrt(accel_x*accel_x + accel_z*accel_z))/math.pi
-  imu_yaw = 180 * math.atan2(accel_z, math.sqrt(accel_x*accel_x + accel_z* accel_z))/math.pi
+  vals = calc_Roll_Pitch_Yaw(accel_x, accel_y, accel_z, mag_x, mag_y, mag_z)
   
+  imu_pitch = vals[0]
+  imu_roll = vals[1]
+  imu_yaw = vals[2]
+
   print("imu_pitch: ", imu_pitch)
   print("imu_roll: ", imu_roll)
   print("imu_yaw: ", imu_yaw)
 
   ## Read the BMP values
-  pres = bmp388.readPressure() 
-  temp = bmp388.readTemperature()
-  altitude = bmp388.readAltitude()
+  pres = 0
+  temp = 0
+  altitude = 0
+  try:
+    pres = bmp388.readPressure()
+    temp = bmp388.readTemperature()
+    altitude = bmp388.readAltitude()
+    prev_pres = pres
+    prev_temp = temp
+    prev_altitude = altitude
+  except:
+    pres = prev_pres
+    temp = prev_temp
+    altitude = prev_altitude
 
   print("Temperature: %s C" %temp)
   print("Pressure : %s Pa" %pres)
@@ -226,6 +332,11 @@ while True:
     duty_cycle4 = int((throttle/100 * 0x7fff) + motor4)+0x7fff
   else:
     ## Motor mixing
+    throttle *= throttle_sensitivity
+    roll *= roll_sensitivity
+    pitch *= pitch_sensitivity
+    yaw *= yaw_sensitivity
+     
     motor1 = throttle - pitch + roll - yaw #ESC 1, front-left: CCW
     motor2 = throttle - pitch - roll  + yaw #ESC 2, front-right: CW
     motor3 = throttle + pitch - roll - yaw #ESC 3, rear-right: CCW
