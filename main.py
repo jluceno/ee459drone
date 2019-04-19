@@ -18,8 +18,8 @@ pitch_max = 10
 yaw_max = 10
 
 ## PID setup
-pid_roll = PID.PID(50, 0, 0)
-pid_pitch = PID.PID(50, 0, 0)
+pid_roll = PID.PID(45, 10, 0)
+pid_pitch = PID.PID(45, 10, 0)
 pid_yaw = PID.PID(0.2, 0, 0)
 
 ## Flags
@@ -211,34 +211,31 @@ def setup():
 try:
   setup()
 
-  ## Setup IMU
-  print("Calibrating IMU ...")
-  imu_vals = None
-  imu_calibrated = False
+  # ## Setup IMU
+  # print("Calibrating IMU ...")
+  # imu_vals = None
+  # imu_calibrated = False
 
-  while not imu_calibrated:
-    try:
-      imu_vals = calibrateIMU(5000)
-      imu_calibrated = True
-    except IOError:
-      print("Retrying IMU calibration ...")
+  # while not imu_calibrated:
+  #   try:
+  #     imu_vals = calibrateIMU(5000)
+  #     imu_calibrated = True
+  #   except IOError:
+  #     print("Retrying IMU calibration ...")
 
-  print(imu_vals)
+  # print(imu_vals)
 
-  ax_calibration = imu_vals[0][0]
-  ay_calibration = imu_vals[0][1]
-  az_calibration = imu_vals[0][2] - 9.297254987947468
-
-  print("raw az_calib: ", imu_vals[0][2])
-  print("az_calib: ", az_calibration)
+  ax_calibration = 0.4732068705574707
+  ay_calibration = 0.4323594745173901
+  az_calibration = -0.01086696794551223 - 9.297254987947468
 
   print("ax_calibration: ", str(ax_calibration))
   print("ay_calibration: ", str(ay_calibration))
   print("az_calibration: ", str(az_calibration))
 
-  mx_calibration = imu_vals[1][0]
-  my_calibration = imu_vals[1][1]
-  mz_calibration = imu_vals[1][2]
+  mx_calibration = -0.4289656560000005
+  my_calibration =  0.4678117919999974
+  mz_calibration = -0.4576352199999961
 
   print("mx_calibration: ", str(mx_calibration))
   print("my_calibration: ", str(my_calibration))
@@ -266,11 +263,15 @@ try:
     print("gy: ", gyro_y)
     print("gz: ", gyro_z)
     '''
-    vals = calc_Roll_Pitch_Yaw(accel_x, accel_y, accel_z, mag_x, mag_y, mag_z)
+    # vals = calc_Roll_Pitch_Yaw(accel_x, accel_y, accel_z, mag_x, mag_y, mag_z)
 
-    imu_pitch = vals[0]
-    imu_roll = vals[1]
-    imu_yaw = vals[2]
+    # imu_pitch = vals[0]
+    # imu_roll = vals[1]
+    # imu_yaw = vals[2]
+
+    imu_pitch = -180 * math.atan2(accel_x, math.sqrt(accel_y*accel_y + accel_z*accel_z))/ pie
+    imu_roll = -180 * math.atan2(accel_y, math.sqrt(accel_x*accel_x + accel_z*accel_z))/ pie
+    imu_yaw = 0
 
     print("imu_pitch: ", imu_pitch)
     print("imu_roll: ", imu_roll)
@@ -375,8 +376,16 @@ try:
       while usr_input == "n":
         time.sleep(2)
         usr_input = input("Do you want to fly again y/n: ")
-    print("Duty cycles: ", (duty_cycle1 - 0x7fff)/0xffff * 100, (duty_cycle2 - 0x7fff)/0xffff * 100,
-      (duty_cycle3 - 0x7fff)/0xffff * 100, (duty_cycle4 - 0x7fff)/0xffff * 100)
+        gains = usr_input.split(" ")
+        pid_roll.setKp(float(gains[0]))
+        pid_roll.setKi(float(gains[1]))
+        pid_roll.setKd(float(gains[2]))
+        pid_pitch.setKp(float(gains[3]))
+        pid_pitch.setKi(float(gains[4]))
+        pid_pitch.setKd(float(gains[5]))
+
+    print("Duty cycles: ", round((duty_cycle1 - 0x7fff)/0xffff * 100), round((duty_cycle2 - 0x7fff)/0xffff * 100),
+      round((duty_cycle3 - 0x7fff)/0xffff * 100), round((duty_cycle4 - 0x7fff)/0xffff * 100))
 
     ## Output values to ESCs
     ## Duty cycle can be set to 0x0000 to 0xffff
@@ -387,11 +396,13 @@ try:
     servohat.motorset(servohat.motor4, min(0xffff, max(0x7fff, duty_cycle4)))
 
     ## Loop again
-except:
+except KeyboardInterrupt:
   print("Motors off!")
+  time.sleep(1)
   servohat.motorset(servohat.motor1, 0)
   servohat.motorset(servohat.motor2, 0)
   servohat.motorset(servohat.motor3, 0)
   servohat.motorset(servohat.motor4, 0)
+
 
 
