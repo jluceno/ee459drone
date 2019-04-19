@@ -15,7 +15,7 @@ import PID
 ## Max angles a user can set as the goal
 roll_max = 10
 pitch_max = 10
-yaw_max = 10
+yaw_max = 1
 
 ## PID setup
 pid_roll = PID.PID(45, 10, 0)
@@ -102,39 +102,6 @@ prev_temp = 0
 
 ## FUNCTIONS ===================================================================
 
-def calc_Roll_Pitch_Yaw(ax,ay,az,mx,my,mz):
-  roll = math.atan2(ax, az)
-  pitch = math.atan2(-ax, math.sqrt(ay * ay + az * az))
-
-  yaw = 0.0
-  if my == 0:
-    if mx < 0:
-      yaw = pie
-    else:
-      yaw = 0
-  else:
-    yaw = math.atan2(mx, my)
-    
-  yaw -= (declination * pie / 180)
-
-  if (yaw > pie):
-    yaw -= (2 * pie)
-  elif (yaw < -pie):
-    yaw += (2 * pie)
-
-  # Convert everything from radians to degrees:
-  yaw *= (180.0 / pie)
-  pitch *= (180.0 / pie)
-  roll  *= (180.0 / pie) 
-
-  # yaw += 180.0 # to change to [0,360] range
-
-  retval = []
-  retval.append(pitch)
-  retval.append(roll)
-  retval.append(yaw)
-  return retval
-
 def calibrateIMU(numLoops):
   ax_avg = 0
   ay_avg = 0
@@ -142,11 +109,14 @@ def calibrateIMU(numLoops):
   mx_avg = 0
   my_avg = 0
   mz_avg = 0
+  gx_avg = 0
+  gy_avg = 0
+  gz_avg = 0
   for i in range(0,numLoops):
     # read values 
     accel_x, accel_y, accel_z = sensor.acceleration
     mag_x, mag_y, mag_z = sensor.magnetic
-    # gyro_x, gyro_y, gyro_z = sensor.gyro
+    gyro_x, gyro_y, gyro_z = sensor.gyro
     # add to averages
     ax_avg += accel_x
     ay_avg += accel_y
@@ -154,19 +124,18 @@ def calibrateIMU(numLoops):
     mx_avg += mag_x
     my_avg += mag_y
     mz_avg += mag_z
-    # gx_avg += gyro_x
-    # gy_avg += gyro_y
-    # gz_avg += gyro_z
+    gx_avg += gyro_x
+    gy_avg += gyro_y
+    gz_avg += gyro_z
   ax_avg /= numLoops
   ay_avg /= numLoops
   az_avg /= numLoops
   mx_avg /= numLoops
   my_avg /= numLoops
   mz_avg /= numLoops
-
-  # gx_avg /= numLoops
-  # gy_avg /= numLoops
-  # gz_avg /= numLoops
+  gx_avg /= numLoops
+  gy_avg /= numLoops
+  gz_avg /= numLoops
   # for debugging purposes -- 
   print(ax_avg)
   print(ay_avg)
@@ -174,9 +143,9 @@ def calibrateIMU(numLoops):
   print(mx_avg)
   print(my_avg)
   print(mz_avg)
-  # print(gx_avg)
-  # print(gy_avg)
-  # print(gz_avg)
+  print(gx_avg)
+  print(gy_avg)
+  print(gz_avg)
   accelerations = []
   accelerations.append(ax_avg)
   accelerations.append(ay_avg)
@@ -185,9 +154,14 @@ def calibrateIMU(numLoops):
   mags.append(mx_avg)
   mags.append(my_avg)
   mags.append(mz_avg)
+  gyros = []
+  mags.append(gx_avg)
+  mags.append(gy_avg)
+  mags.append(gz_avg)
   retval = []
   retval.append(accelerations)
   retval.append(mags)
+  retval.append(gyros)
   return retval
 
 def setupLEDs():
@@ -211,35 +185,41 @@ def setup():
 try:
   setup()
 
-  # ## Setup IMU
-  # print("Calibrating IMU ...")
-  # imu_vals = None
-  # imu_calibrated = False
+  ## Setup IMU
+  print("Calibrating IMU ...")
+  imu_vals = None
+  imu_calibrated = False
 
-  # while not imu_calibrated:
-  #   try:
-  #     imu_vals = calibrateIMU(5000)
-  #     imu_calibrated = True
-  #   except IOError:
-  #     print("Retrying IMU calibration ...")
+  while not imu_calibrated:
+    try:
+      imu_vals = calibrateIMU(5000)
+      imu_calibrated = True
+    except IOError:
+      print("Retrying IMU calibration ...")
 
-  # print(imu_vals)
-
-  ax_calibration = 0.4732068705574707
-  ay_calibration = 0.4323594745173901
-  az_calibration = -0.01086696794551223 - 9.297254987947468
+  ax_calibration = imu_vals[0][0]
+  ay_calibration = imu_vals[0][1]
+  az_calibration = imu_vals[0][2] - 9.297254987947468
 
   print("ax_calibration: ", str(ax_calibration))
   print("ay_calibration: ", str(ay_calibration))
   print("az_calibration: ", str(az_calibration))
 
-  mx_calibration = -0.4289656560000005
-  my_calibration =  0.4678117919999974
-  mz_calibration = -0.4576352199999961
+  mx_calibration = imu_vals[1][0]
+  my_calibration = imu_vals[1][1]
+  mz_calibration = imu_vals[1][2]
 
   print("mx_calibration: ", str(mx_calibration))
   print("my_calibration: ", str(my_calibration))
   print("mz_calibration: ", str(mz_calibration))
+
+  gx_calibration = imu_vals[2][0]
+  gy_calibration = imu_vals[2][1]
+  gz_calibration = imu_vals[2][2]
+
+  print("gx_calibration: ", str(gx_calibration))
+  print("gy_calibration: ", str(gy_calibration))
+  print("gz_calibration: ", str(gz_calibration))
 
   ## Main loop
   while True:
@@ -248,6 +228,7 @@ try:
     # Read in the IMU values
     accel_x, accel_y, accel_z = sensor.acceleration
     mag_x, mag_y, mag_z = sensor.magnetic
+    gyro_x, gyro_y, gyro_z = sensor.gyro
 
     accel_x -= ax_calibration
     accel_y -= ay_calibration
@@ -255,14 +236,17 @@ try:
     mag_x -= mx_calibration
     mag_y -= my_calibration
     mag_z -= mz_calibration
-    '''
+    gyro_x -= gx_calibration
+    gyro_y -= gy_calibration
+    gyro_z -= gz_calibration
+
     print("ax: ", accel_x)
     print("ay: ", accel_y)
     print("az: ", accel_z)
     print("gx: ", gyro_x)
     print("gy: ", gyro_y)
     print("gz: ", gyro_z)
-    '''
+    time.sleep(0.5)
     # vals = calc_Roll_Pitch_Yaw(accel_x, accel_y, accel_z, mag_x, mag_y, mag_z)
 
     # imu_pitch = vals[0]
@@ -284,7 +268,7 @@ try:
     try:
       pres = bmp388_dev.readPressure()
       temp = bmp388_dev.readTemperature()
-      altitude = bmp388_dev.readCalibratedAltitude(101500)
+      altitude = bmp388_dev.readCalibratedAltitude(sealevel)
       prev_pres = pres
       prev_temp = temp
       prev_altitude = altitude
@@ -303,32 +287,38 @@ try:
     throttle = atmega.get_data(3)
     yaw = 50 - atmega.get_data(4)
 
+    if (abs(roll) < 2):
+      roll = 0
+    if (abs(pitch) < 2):
+      pitch = 0
+    if (abs(yaw) < 2):
+      yaw = 0
+
     ## Calculate PID values or motor mix =========================================
 
     if is_PID_control:
       ## PID control
       pid_roll.SetPoint = (roll_max * roll/50)
       pid_pitch.SetPoint = (pitch_max * pitch/50)
-      ##pid_yaw.SetPoint = yaw_baseline + (yaw_max * yaw/50)
+      pid_yaw.SetPoint = (yaw_max * yaw/50)
 
       pid_roll.update(imu_roll)
       pid_pitch.update(imu_pitch)
-      ##pid_yaw.update(None)
+      pid_yaw.update(None)
 
-      motor1 = -pid_pitch.output + pid_roll.output - yaw #ESC 1, front-left: CCW
-      motor2 = -pid_pitch.output - pid_roll.output  + yaw #ESC 2, front-right: CW
-      motor3 = pid_pitch.output - pid_roll.output - yaw #ESC 3, rear-right: CCW
-      motor4 = pid_pitch.output + pid_roll.output + yaw #ESC 4, rear-left: CW
+      motor1 = -pid_pitch.output + pid_roll.output - pid_yaw.output #ESC 1, front-left: CCW
+      motor2 = -pid_pitch.output - pid_roll.output  + pid_yaw.output #ESC 2, front-right: CW
+      motor3 = pid_pitch.output - pid_roll.output - pid_yaw.output #ESC 3, rear-right: CCW
+      motor4 = pid_pitch.output + pid_roll.output + pid_yaw.output #ESC 4, rear-left: CW
 
-      yaw *= yaw_sensitivity
       throttle *= throttle_sensitivity
 
       print(motor1, motor2, motor3, motor4)
 
-      duty_cycle1 = int(((throttle - yaw)/100 * 0x7fff) + motor1)+0x7fff
-      duty_cycle2 = int(((throttle + yaw)/100 * 0x7fff) + motor2)+0x7fff
-      duty_cycle3 = int(((throttle - yaw)/100 * 0x7fff) + motor3)+0x7fff
-      duty_cycle4 = int(((throttle + yaw)/100 * 0x7fff) + motor4)+0x7fff
+      duty_cycle1 = int(((throttle)/100 * 0x7fff) + motor1)+0x7fff
+      duty_cycle2 = int(((throttle)/100 * 0x7fff) + motor2)+0x7fff
+      duty_cycle3 = int(((throttle)/100 * 0x7fff) + motor3)+0x7fff
+      duty_cycle4 = int(((throttle)/100 * 0x7fff) + motor4)+0x7fff
     else:
       ## Motor mixing
       throttle *= throttle_sensitivity
