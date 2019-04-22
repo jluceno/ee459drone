@@ -18,10 +18,10 @@ pitch_max = 10
 yaw_max = 1
 
 ## PID setup
-pid_roll = PID.PID(45, 10, 0)
-pid_pitch = PID.PID(45, 10, 0)
+pid_roll = PID.PID(4, 1, 0)
+pid_pitch = PID.PID(4, 1, 0)
 pid_yaw = PID.PID(4, 0.02, 0)
-
+last_input = "4 1 0"
 ## Flags
 ## Change this if you want to use motor mixing or PID control
 is_PID_control = True
@@ -37,12 +37,19 @@ pitch_sensitivity = 0.5
 yaw_sensitivity = 1
 
 ## What is the default angle?.
+# TODO reset these using calibrated angles
 roll_baseline = 0
 pitch_baseline = 0
 yaw_baseline = 0
 
+## filter stuff
+dt = 0.09
+
 ## Current sea level pressure
 sealevel = 1015
+
+## for camera picture naming
+pic_num = 0
 
 ## END SET THESE ===============================================================
 
@@ -184,7 +191,7 @@ def setup():
 ## Begin program ===============================================================
 try:
   setup()
-
+  
   # ## Setup IMU
   # print("Calibrating IMU ...")
   # imu_vals = None
@@ -221,6 +228,26 @@ try:
   # print("gy_calibration: ", str(gy_calibration))
   # print("gz_calibration: ", str(gz_calibration))
 
+  accel_x, accel_y, accel_z = sensor.acceleration
+  mag_x, mag_y, mag_z = sensor.magnetic
+  gyro_x, gyro_y, gyro_z = sensor.gyro
+
+  accel_x -= ax_calibration
+  accel_y -= ay_calibration
+  accel_z -= az_calibration
+  mag_x -= mx_calibration
+  mag_y -= my_calibration
+  mag_z -= mz_calibration
+  gyro_x -= gx_calibration
+  gyro_y -= gy_calibration
+  gyro_z -= gz_calibration
+
+  imu_pitch = -180 * math.atan2(accel_x, math.sqrt(accel_y*accel_y + accel_z*accel_z))/ pie
+  imu_roll = -180 * math.atan2(accel_y, math.sqrt(accel_x*accel_x + accel_z*accel_z))/ pie
+  imu_yaw = 0
+  imu_pitch_last = imu_pitch
+  imu_roll_last = imu_roll
+
   ## Main loop
   while True:
     time_init = time.time()
@@ -255,11 +282,23 @@ try:
 
     imu_pitch = -180 * math.atan2(accel_x, math.sqrt(accel_y*accel_y + accel_z*accel_z))/ pie
     imu_roll = -180 * math.atan2(accel_y, math.sqrt(accel_x*accel_x + accel_z*accel_z))/ pie
-    imu_yaw = 0
+    imu_yaw = gyro_z
+    print("pre filter --------------------")
+    print("roll pre filter: ", imu_roll)
+    print("gyro_x: ", gyro_x)
+    print("pitch pre filter: ", imu_pitch)
+    rint("gyro_y: ", gyro_y)
 
-    # print("imu_pitch: ", imu_pitch)
-    # print("imu_roll: ", imu_roll)
-    # print("imu_yaw: ", imu_yaw)
+    imu_pitch = (0.99 * (imu_pitch_last +(dt *gyro_y))) + (0.01 * imu_pitch)
+    imu_roll = (0.99 * (imu_roll_last + (dt*gyro_x))) + (0.01 * imu_roll)
+
+    imu_pitch_last = imu_pitch
+    imu_roll_last = imu_roll
+    print("post filter --------------------")
+    print("roll post filter: ", imu_roll)
+    print("gyro_x: ", gyro_x)
+    print("pitch post filter: ", imu_pitch)
+    print("gyro_y: ", gyro_y)
 
     ## Read the BMP values
     pres = 0
@@ -313,7 +352,7 @@ try:
 
       throttle *= throttle_sensitivity
 
-      print(motor1, motor2, motor3, motor4)
+      #print(motor1, motor2, motor3, motor4)
 
       duty_cycle1 = int(((throttle)/100 * 0x7fff) + motor1)+0x7fff
       duty_cycle2 = int(((throttle)/100 * 0x7fff) + motor2)+0x7fff
@@ -338,7 +377,7 @@ try:
 
     ## Output battery status
     battery_perc = (int(atmega.get_data(5)) - 154)/(189-154) * 100
-    print("Battery: ", battery_perc)
+    #print("Battery: ", battery_perc)
 
     if battery_perc > 50:
       GPIO.output(4,GPIO.HIGH)
@@ -367,20 +406,23 @@ try:
         time.sleep(2)
 
         ## gains args: <roll/pitch p> <roll/pitch i> <roll/pitch d> <yaw p> <yaw i> <yaw d>
-        usr_input = input("Do you want to fly again y/n: ")
+        print("last inputted values: ")
+        print(last_input)
+        usr_input = input("Set PID values Pr Ir Dr Pp Ip Dp")
+        last_input = usr_input
         gains = usr_input.split(" ")
         pid_roll.setKp(float(gains[0]))
         pid_roll.setKi(float(gains[1]))
         pid_roll.setKd(float(gains[2]))
-        pid_pitch.setKp(float(gains[0]))
-        pid_pitch.setKi(float(gains[1]))
-        pid_pitch.setKd(float(gains[2]))
-        pid_yaw.setKp(float(gains[3]))
-        pid_yaw.setKi(float(gains[4]))
-        pid_yaw.setKd(float(gains[5]))
+        pid_pitch.setKp(float(gains[3]))
+        pid_pitch.setKi(float(gains[4]))
+        pid_pitch.setKd(float(gains[5]))
+        # pid_yaw.setKp(float(gains[3]))
+        # pid_yaw.setKi(float(gains[4]))
+        # pid_yaw.setKd(float(gains[5]))
 
-    print("Duty cycles: ", round((duty_cycle1 - 0x7fff)/0xffff * 100), round((duty_cycle2 - 0x7fff)/0xffff * 100),
-      round((duty_cycle3 - 0x7fff)/0xffff * 100), round((duty_cycle4 - 0x7fff)/0xffff * 100))
+    #print("Duty cycles: ", round((duty_cycle1 - 0x7fff)/0xffff * 100), round((duty_cycle2 - 0x7fff)/0xffff * 100),
+      #round((duty_cycle3 - 0x7fff)/0xffff * 100), round((duty_cycle4 - 0x7fff)/0xffff * 100))
 
     ## Output values to ESCs
     ## Duty cycle can be set to 0x0000 to 0xffff
@@ -392,6 +434,17 @@ try:
 
     time_f = time.time()
     time_d = time_f - time_init
+
+    pic_taken = False
+
+    while(time_d < 0.09):
+      time_d = time_f - time_init
+      if(time_d < 0.07) and not pic_taken:
+        pic_num += 1
+        img_file_name = "/home/pi/ee459drone/media/image" + str(pic_num) + ".jpg"
+        camera.capture(img_file_name)
+        pic_taken = True
+    
     print("Time difference: ", time_d)
 
     ## Loop again
@@ -402,6 +455,3 @@ except KeyboardInterrupt:
   servohat.motorset(servohat.motor2, 0)
   servohat.motorset(servohat.motor3, 0)
   servohat.motorset(servohat.motor4, 0)
-
-
-
