@@ -242,7 +242,7 @@ try:
   gyro_y -= gy_calibration
   gyro_z -= gz_calibration
 
-  imu_pitch = -180 * math.atan2(accel_x, math.sqrt(accel_y*accel_y + accel_z*accel_z))/ pie
+  imu_pitch = 180 * math.atan2(accel_x, math.sqrt(accel_y*accel_y + accel_z*accel_z))/ pie
   imu_roll = -180 * math.atan2(accel_y, math.sqrt(accel_x*accel_x + accel_z*accel_z))/ pie
   imu_yaw = 0
   imu_pitch_last = imu_pitch
@@ -251,6 +251,7 @@ try:
 
   ## Main loop
   while True:
+    print("NEW TICK ======")
     time_init = time.time()
     ## Read the sensor values ====================================================
 
@@ -284,11 +285,6 @@ try:
     imu_pitch = 180 * math.atan2(accel_x, math.sqrt(accel_y*accel_y + accel_z*accel_z))/ pie
     imu_roll = -180 * math.atan2(accel_y, math.sqrt(accel_x*accel_x + accel_z*accel_z))/ pie
     imu_yaw = gyro_z
-    print("pre filter --------------------")
-    print("roll pre filter: ", imu_roll)
-    print("gyro_x: ", gyro_x)
-    print("pitch pre filter: ", imu_pitch)
-    print("gyro_y: ", gyro_y)
 
     accel_gain = 0.95
 
@@ -297,11 +293,8 @@ try:
 
     imu_pitch_last = imu_pitch
     imu_roll_last = imu_roll
-    print("post filter --------------------")
-    print("roll post filter: ", imu_roll)
-    print("gyro_x: ", gyro_x)
-    print("pitch post filter: ", imu_pitch)
-    print("gyro_y: ", gyro_y)
+    print("Roll : ", imu_roll)
+    print("Pitch : ", imu_pitch)
 
     ## Read the BMP values
     pres = 0
@@ -319,9 +312,9 @@ try:
       temp = prev_temp
       altitude = prev_altitude
 
-    # print("Temperature: %s C" %temp)
-    # print("Pressure : %s Pa" %pres)
-    # print("Altitude :%s m" %altitude)
+    print("Temperature : %s C" %temp)
+    print("Pressure : %s Pa" %pres)
+    print("Altitude :%s m" %altitude)
 
     ## Get user input 
     roll = 50 - atmega.get_data(1)
@@ -335,6 +328,10 @@ try:
       pitch = 0
     if (abs(yaw) < 2):
       yaw = 0
+
+    print("Roll input: ", roll)
+    print("Pitch input: ", pitch)
+    print("Yaw input: ", yaw)
 
     ## Calculate PID values or motor mix =========================================
 
